@@ -86,9 +86,14 @@ dashboard.section.buttons.val = {
 
 local Job = require "plenary.job"
 local footer = function()
-  local j = Job:new { command = "oblique" } ---@diagnostic disable-line: missing-fields
-  j:sync()
-  return j:result()[1]
+  local job = function()
+    local j = Job:new { command = "oblique" } ---@diagnostic disable-line: missing-fields
+    j:sync()
+    return j:result()[1]
+  end
+
+  local success, result = pcall(job)
+  return success and result or ""
 end
 
 dashboard.section.footer.val = footer
