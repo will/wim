@@ -1,0 +1,16 @@
+{
+  "Metadata": {
+    "prefix": ["meta"],
+    "body": [
+      "---",
+      "title: ${1:note_title}",
+      "author: ${2:author}",
+      "date: $CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE",
+      "categories: [${3}]",
+      "tags: [${4}]",
+      "---",
+      "$0"
+    ],
+    "description": "Yaml metadata format for markdown"
+  }
+}

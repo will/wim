@@ -1,0 +1,6 @@
+{
+    "my thing": {
+        "prefix": "lbl",
+        "body": ["begin", "\t$1", "rescue ${2:StandardError} => ${3:exception}", "\t$0", "end"]
+    },
+}
