@@ -9,13 +9,14 @@
       ];
       utils = import ./utils.nix { inherit nixpkgs overlays; };
 
-    in utils.with-system {
+    in
+    utils.with-system {
       formatter = { pkgs, ... }:
         pkgs.writeShellApplication {
           name = "lint";
           runtimeInputs = builtins.attrValues {
             inherit (pkgs)
-              nixfmt-classic # -rfc-style
+              nixfmt-classic# -rfc-style
               deadnix statix fd stylua;
           };
           text = ''
@@ -41,9 +42,11 @@
         default = pkgs.mkShellNoCC {
           packages =
             [ self.dvim.${system} self.formatter.${system} pkgs.npins ];
-          shellHook = let
-            luarc = pkgs.mk-luarc-json { plugins = self.plugins.${system}; };
-          in "ln -fs ${luarc} .luarc.json";
+          shellHook =
+            let
+              luarc = pkgs.mk-luarc-json { plugins = self.plugins.${system}; };
+            in
+            "ln -fs ${luarc} .luarc.json";
         };
       };
 
@@ -73,19 +76,20 @@
           devPluginPaths = [ "/Users/will/code/wim-public/will" ];
           plugins = self.plugins.${system};
 
-          extraBinPath = builtins.attrValues {
-            #
-            # Runtime dependencies
-            #
-            inherit (pkgs)
-              nixd deadnix statix nil
+          extraBinPath = builtins.attrValues
+            {
+              #
+              # Runtime dependencies
+              #
+              inherit (pkgs)
+                nixd deadnix statix nil
 
-              lua-language-server stylua
+                lua-language-server stylua
 
-              fzy
+                fzy
 
-              ripgrep fd chafa;
-          } ++ [
+                ripgrep fd chafa;
+            } ++ [
             (pkgs.writeShellApplication {
               name = "ppspec";
               text = ''if [ $# -eq 0 ]; then pspec; else rspec "$@"; fi '';
