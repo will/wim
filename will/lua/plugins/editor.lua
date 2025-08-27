@@ -15,8 +15,8 @@ return {
     "telescope.nvim", -- https://github.com/nvim-telescope/telescope.nvim
     cmd = "Telescope",
     before = function()
-      utils.packadd "plenary.nvim"
-      utils.packadd "telescope-zf-native.nvim"
+      packadd "plenary.nvim"
+      packadd "telescope-zf-native.nvim"
     end,
     after = function()
       local actions = require "telescope.actions"
@@ -159,11 +159,11 @@ return {
   {
     "neotest", -- https://github.com/nvim-neotest/neotest
     before = function()
-      utils.packadd "plenary.nvim"
-      utils.packadd "nvim-nio"
+      packadd "plenary.nvim"
+      packadd "nvim-nio"
     end,
     after = function()
-      utils.packadd "neotest-rspec"
+      packadd "neotest-rspec"
       require("neotest").setup {
         adapters = {
           require "neotest-rspec" {

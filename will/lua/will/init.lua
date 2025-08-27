@@ -2,6 +2,7 @@ require("will.sandbox").start_sandbox()
 local utils = require "will.utils"
 
 vim.g.mapleader = " "
+vim.g.maplocalleader = ";"
 require "will.options"
 
 if utils.sandboxed() then
