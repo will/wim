@@ -26,7 +26,7 @@ return {
         load = {
           ["core.defaults"] = {},
           ["core.concealer"] = {},
-          ["core.dirman"] = { config = { workspaces = { notes = "~/notes" } } },
+          ["core.dirman"] = { config = { default_workspace = "notes", workspaces = { notes = "~/notes" } } },
           ["external.interim-ls"] = {},
           ["core.completion"] = { config = { engine = { module_name = "external.lsp-completion" } } },
         },

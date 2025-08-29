@@ -51,7 +51,11 @@
       };
 
       plugins = { pkgs, system }:
-        [ pkgs.vimPlugins.nvim-treesitter.withAllGrammars ]
+        [
+          (pkgs.vimPlugins.nvim-treesitter.withPlugins (_:
+            pkgs.vimPlugins.nvim-treesitter.allGrammars ++ [ (pkgs.tree-sitter-grammars.tree-sitter-norg-meta) ]
+          ))
+        ]
         ++ (utils.npins-plugins "npins") ++ [
           blink.packages.${system}.default
           (pkgs.callPackage ./dirtytalk.nix { src = dirtytalk; })

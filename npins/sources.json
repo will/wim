@@ -163,20 +163,17 @@
       "hash": "1vgm0p7dpc17j8yhhg426a3f2v7ww10638qnrvxqpkq0la2k08bq"
     },
     "neorg": {
-      "type": "GitRelease",
+      "type": "Git",
       "repository": {
         "type": "GitHub",
         "owner": "nvim-neorg",
         "repo": "neorg"
       },
-      "pre_releases": false,
-      "version_upper_bound": null,
-      "release_prefix": null,
+      "branch": "main",
       "submodules": false,
-      "version": "v9.3.0",
-      "revision": "e206c9642f4a115cd836e76c98ef785623d335bc",
-      "url": "https://api.github.com/repos/nvim-neorg/neorg/tarball/v9.3.0",
-      "hash": "0ifl5n8sq8bafzx72ghfrmxsylhhlqvqmxzb5258jm76qj113cd9"
+      "revision": "790b0444c0c654131a722817dc893332e06c72b9",
+      "url": "https://github.com/nvim-neorg/neorg/archive/790b0444c0c654131a722817dc893332e06c72b9.tar.gz",
+      "hash": "1bnqsf4v6rbw54z6ybibxz1qf0smxvzfxk938yb19jg075fsn15r"
     },
     "neorg-interim-ls": {
       "type": "GitRelease",
