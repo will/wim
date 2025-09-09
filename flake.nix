@@ -77,7 +77,7 @@
           initLua = "require('will')";
 
           devExcludedPlugins = [ ./will ];
-          devPluginPaths = [ "/Users/will/code/wim-public/will" ];
+          devPluginPaths = [ "~/code/wim-public/will" ];
           plugins = self.plugins.${system};
 
           extraBinPath = builtins.attrValues

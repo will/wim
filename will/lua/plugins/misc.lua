@@ -26,6 +26,11 @@ return {
         load = {
           ["core.defaults"] = {},
           ["core.concealer"] = {},
+          ["core.journal"] = {
+            config = {
+              strategy = function(t) return string.lower("" .. os.date("%Y/%W/%Y-%m-%d_%A.norg", os.time(t))) end,
+            },
+          },
           ["core.dirman"] = { config = { default_workspace = "notes", workspaces = { notes = "~/notes" } } },
           ["external.interim-ls"] = {},
           ["core.completion"] = { config = { engine = { module_name = "external.lsp-completion" } } },
