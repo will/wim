@@ -68,3 +68,16 @@ vim.cmd [[set formatoptions-=cro]] -- TODO: this doesn't seem to work
 
 -- per project spelling
 vim.cmd [[set spellfile=.en.utf-8.add]]
+
+-- manually enable osc52
+vim.g.clipboard = {
+  name = "OSC52", -- if name is default "OSC 52", then whichkey wont display
+  copy = {
+    ["+"] = require("vim.ui.clipboard.osc52").copy "+",
+    ["*"] = require("vim.ui.clipboard.osc52").copy "*",
+  },
+  paste = {
+    ["+"] = require("vim.ui.clipboard.osc52").paste "+",
+    ["*"] = require("vim.ui.clipboard.osc52").paste "*",
+  },
+}
