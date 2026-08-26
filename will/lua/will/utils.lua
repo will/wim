@@ -32,6 +32,13 @@ M.mini_setup = function(plugin, setup)
   require("mini." .. plugin).setup(setup)
 end
 
+--- Git signs for the current 'statuscolumn' line, blank padding while gitsigns is
+--- still lazy-loaded. Evaluated once per screen line, so avoid a failing `require`.
+M.git_statuscolumn = function()
+  local gitsigns = package.loaded.gitsigns
+  return gitsigns and gitsigns.statuscolumn() or "  "
+end
+
 local map_defaults = { "unique", "noremap", "silent" }
 M.keymap = function(mode, lhs, rhs, desc, opt)
   if not opt then opt = {} end

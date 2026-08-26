@@ -31,12 +31,36 @@ local config = function()
 end
 
 if utils.sandboxed() then
-  ---@diagnostic disable-next-line: missing-fields
-  require("nvim-treesitter.configs").setup {
-    highlight = { enable = true },
-    incremental_selection = { enable = true },
-    indent = { enable = true },
-  }
+  -- nvim-treesitter no longer has modules, highlighting is neovim's and indenting
+  -- is an indentexpr. Incremental selection is builtin now, see :h v_in
+  local function start_treesitter(buf)
+    if not vim.api.nvim_buf_is_valid(buf) then return end
+
+    local lang = vim.treesitter.language.get_lang(vim.bo[buf].filetype)
+
+    -- some ftplugins start treesitter themselves (nvim's own ftplugin/lua.lua does) and
+    -- lz.n re-fires FileType after a packadd, so only start what is not already running:
+    -- a second highlighter for the same language orphans the first one's tree callbacks
+    local active = vim.treesitter.highlighter.active[buf]
+    if not (active and lang and active.tree:lang() == lang) then
+      if not pcall(vim.treesitter.start, buf) then return end
+    end
+
+    -- only languages shipping an indents query, otherwise everything indents to 0
+    if lang and vim.treesitter.query.get(lang, "indents") then
+      vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+    end
+  end
+
+  vim.api.nvim_create_autocmd("FileType", {
+    group = vim.api.nvim_create_augroup("Treesitter", { clear = true }),
+    -- deferred by a tick: lz.n packadds `ft` plugins from its own FileType autocmd,
+    -- which runs after this one, and vim.treesitter.query.get memoizes a miss for the
+    -- session. Starting norg here would pin neorg's queries to nil forever.
+    callback = function(args)
+      vim.schedule(function() start_treesitter(args.buf) end)
+    end,
+  })
   utils.after_ui_enter(config)
 
   utils.packadd "lz.n"

@@ -3,6 +3,19 @@ local packadd = utils.packadd
 
 ---@diagnostic disable: missing-fields
 
+-- diffview picks its VCS adapter when a command runs, trying git before jj, so in a
+-- colocated repo git wins. Only the history panel wants jj, for change IDs and jj
+-- commit stats: jujutsu.nvim shells out to `DiffviewOpen <sha>^!`, git revspec syntax
+-- that jj cannot parse, so global detection has to stay on git.
+local function jj_file_history(paths)
+  local config = require("diffview.config").get_config()
+  local previous = config.preferred_adapter
+  config.preferred_adapter = "jj"
+  local ok, err = pcall(vim.cmd, "DiffviewFileHistory " .. paths)
+  config.preferred_adapter = previous
+  if not ok then vim.notify(tostring(err), vim.log.levels.ERROR) end
+end
+
 ---@type lz.n.Spec
 return {
   {
@@ -20,7 +33,36 @@ return {
     end,
     after = function()
       local actions = require "telescope.actions"
+      local action_state = require "telescope.actions.state"
+
+      -- ripgrep's --hidden is baked into the finder's command when the picker is
+      -- built, so flipping it means relaunching the picker with the prompt,
+      -- directory and title carried across. Sticky for the rest of the session.
+      --
+      -- live_grep only: a picker does not keep the opts it was built from, and
+      -- grep_string's search term is one of them, so relaunching it would silently
+      -- re-search vim.fn.expand "<cword>" of whatever buffer we closed back to.
+      local grep_hidden = false
+      local function toggle_grep_hidden(prompt_bufnr)
+        grep_hidden = not grep_hidden
+        local picker = action_state.get_current_picker(prompt_bufnr)
+        local title = picker.prompt_title:gsub(" %(hidden%)$", "")
+        local opts = {
+          hidden = grep_hidden,
+          default_text = action_state.get_current_line(),
+          cwd = picker.cwd,
+          prompt_title = grep_hidden and title .. " (hidden)" or title,
+        }
+        actions.close(prompt_bufnr)
+        require("telescope.builtin").live_grep(opts)
+      end
+
       require("telescope").setup {
+        pickers = {
+          live_grep = {
+            mappings = { i = { ["<M-h>"] = toggle_grep_hidden }, n = { ["<M-h>"] = toggle_grep_hidden } },
+          },
+        },
         defaults = {
           prompt_prefix = " ",
           selection_caret = " ",
@@ -57,7 +99,7 @@ return {
     "neo-tree.nvim", -- https://github.com/nvim-neo-tree/neo-tree.nvim
     beforeAll = function()
       if vim.fn.argc() == 1 then
-        local stat = vim.loop.fs_stat(vim.fn.argv(0)) ---@diagnostic disable-line
+        local stat = vim.uv.fs_stat(vim.fn.argv(0)) ---@diagnostic disable-line
         if stat and stat.type == "directory" then require("lz.n").trigger_load "neo-tree.nvim" end
       end
     end,
@@ -77,27 +119,6 @@ return {
   {
     "fileline.nvim", -- https://github.com/lewis6991/fileline.nvim
     event = "BufNewFile",
-  },
-
-  {
-    "nvim-biscuits", -- https://github.com/code-biscuits/nvim-biscuits
-    enabled = false, -- TODO: remove entirely?
-    after = function()
-      require("nvim-biscuits").setup {
-        default_config = { prefix_string = "󰨿 " },
-      }
-      vim.api.nvim_set_hl(0, "BiscutColor", { link = "Comment" }) -- TODO: not working?
-    end,
-    keys = {
-      {
-        "<leader>bb",
-        function()
-          require("nvim-biscuits").BufferAttach()
-          require("nvim-biscuits").toggle_biscuits()
-        end,
-        desc = "Toggle Biscuits",
-      },
-    },
   },
 
   {
@@ -158,10 +179,7 @@ return {
 
   {
     "neotest", -- https://github.com/nvim-neotest/neotest
-    before = function()
-      packadd "plenary.nvim"
-      packadd "nvim-nio"
-    end,
+    before = function() packadd "nvim-nio" end,
     after = function()
       packadd "neotest-rspec"
       require("neotest").setup {
@@ -186,6 +204,10 @@ return {
     after = function()
       require("gitsigns").setup {
         numhl = true,
+        -- git signs are rendered into 'statuscolumn' (see will.options) so they
+        -- sit beside the line number instead of fighting diagnostics for the
+        -- sign column
+        signcolumn = false,
         current_line_blame_opts = { delay = 0 },
         on_attach = function(bufnr)
           local gitsigns = require "gitsigns"
@@ -219,20 +241,60 @@ return {
           map("v", "<leader>hs", function() gitsigns.stage_hunk { vim.fn.line ".", vim.fn.line "v" } end, "Stage Hunk")
           map("v", "<leader>hr", function() gitsigns.reset_hunk { vim.fn.line ".", vim.fn.line "v" } end, "Reset Hunk")
           map("n", "<leader>hS", gitsigns.stage_buffer, "Stage Buffer")
-          map("n", "<leader>hu", gitsigns.undo_stage_hunk, "Undo Stage Hunk")
+          -- only touches the index, unlike <leader>hR
+          map("n", "<leader>hU", gitsigns.reset_buffer_index, "Unstage Buffer")
           map("n", "<leader>hR", gitsigns.reset_buffer, "Reset Buffer")
           map("n", "<leader>hp", gitsigns.preview_hunk, "Preview Hunk")
           map("n", "<leader>hb", function() gitsigns.blame_line { full = true } end, "Blame Line")
           map("n", "<leader>tb", gitsigns.toggle_current_line_blame, "Toggle Line Blame")
           map("n", "<leader>hd", gitsigns.diffthis, "Diff this")
           map("n", "<leader>hD", function() gitsigns.diffthis "~" end, "Diff This ~")
-          map("n", "<leader>td", gitsigns.toggle_deleted, "Toggle Deleted")
+          -- clears itself on CursorMoved, so it does not belong in the <leader>t toggles
+          map("n", "<leader>hi", gitsigns.preview_hunk_inline, "Preview Hunk Inline")
+          map("n", "<leader>hc", gitsigns.show_commit, "Show Commit")
 
           -- Text object
           map({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>")
         end,
       }
     end,
+  },
+
+  {
+    "jujutsu.nvim", -- https://github.com/yannvanhalewyn/jujutsu.nvim
+    before = function()
+      packadd { "plenary.nvim", "diffview-plus.nvim" }
+      vim.cmd.runtime "plugin/diffview.lua"
+    end,
+    after = function()
+      local jj = require "jujutsu-nvim"
+      jj.setup { diff_preset = "diffview" }
+
+      -- Patch to support custom jj log format (short lowercase change IDs like "mup")
+      local jj_internal = require "jujutsu-nvim.jujutsu"
+      jj_internal.extract_change_id = function(line)
+        local clean = line:gsub("\27%[[@-~?]", ""):gsub("\27%[[0-9:;<=>?]*[!-/]*[@-~]", "")
+        local change_id = clean:match "^%W*([a-z]+)%s"
+        if change_id and #change_id >= 2 and #change_id <= 8 then return change_id end
+      end
+
+      -- Patch to accept 2+ char change IDs (default requires 4+)
+      jj.with_change_at_cursor = function(operation)
+        local line = vim.api.nvim_get_current_line()
+        local change_id = jj_internal.extract_change_id(line)
+        if change_id then
+          operation(change_id)
+        else
+          vim.notify("Could not find change ID on current line", vim.log.levels.WARN)
+        end
+      end
+    end,
+    cmd = "JJ",
+    keys = {
+      { "<leader>jl", "<cmd>JJ log<cr>", desc = "JJ Log" },
+      { "<leader>jh", function() jj_file_history "%" end, desc = "File history (jj)" },
+      { "<leader>jH", function() jj_file_history "" end, desc = "Repo history (jj)" },
+    },
   },
 
   {

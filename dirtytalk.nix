@@ -1,4 +1,8 @@
-{ stdenvNoCC, src, neovim }:
+{
+  stdenvNoCC,
+  src,
+  neovim,
+}:
 stdenvNoCC.mkDerivation {
   name = "vim-dirtytalk";
   inherit src;
@@ -15,4 +19,3 @@ stdenvNoCC.mkDerivation {
     cp *.spl $out/spell
   '';
 }
-

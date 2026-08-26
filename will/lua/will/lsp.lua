@@ -1,3 +1,16 @@
+-- Global and set at load, not per LspAttach: noice loads a tick into startup, so a
+-- `package.loaded.noice` test would answer differently for the first attach than for
+-- every later one, and vim.lsp._set_defaults would win the race for K by installing a
+-- buffer-local one whenever no mapping exists yet. noice only restyles these windows,
+-- so the rounded border stays ours either way.
+vim.keymap.set("n", "K", function() vim.lsp.buf.hover { border = "rounded" } end, { desc = "Hover" })
+vim.keymap.set(
+  { "i", "s" },
+  "<C-s>",
+  function() vim.lsp.buf.signature_help { border = "rounded" } end,
+  { desc = "Signature help" }
+)
+
 local lsp_configured = false
 local function configure_lsp()
   if lsp_configured then return end
@@ -21,13 +34,6 @@ local function configure_lsp()
     },
     virtual_lines = { enable = true, current_line = true },
   }
-
-  -- Popups rounded
-  if not package.loaded["noice"] then
-    vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = "rounded" })
-    vim.lsp.handlers["textDocument/signatureHelp"] =
-      vim.lsp.with(vim.lsp.handlers.signature_help, { border = "rounded" })
-  end
 
   -- Disable diagnostics while in insert mode
   vim.api.nvim_create_autocmd("ModeChanged", {
@@ -55,7 +61,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end
 
     -- Format the current buffer on save
-    if client.supports_method "textDocument/formatting" then
+    if client:supports_method "textDocument/formatting" then
       vim.api.nvim_create_autocmd("BufWritePre", {
         buffer = event.buf,
         callback = function()

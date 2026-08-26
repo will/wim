@@ -6,9 +6,10 @@ local options = {
   cmdheight = 0,
   cursorline = true,                       -- highlight the current line
   expandtab = true,                        -- convert tabs to spaces
-  foldexpr = "nvim_treesitter#foldexpr()", -- fold by tresitter
-  foldlevel = 20,                          --
-  foldmethod = "expr",                     --
+  -- returns "0" when the buffer has no parser, so this is safe everywhere
+  foldexpr = "v:lua.vim.treesitter.foldexpr()",
+  foldlevel = 20,                          -- start with everything unfolded
+  foldmethod = "expr",
   guifont = "monospace:h17",               -- the font used in graphical neovim applications
   ignorecase = true,                       -- ignore case in search patterns
   mouse = "a",                             -- allow the mouse to be used in neovim
@@ -48,6 +49,10 @@ for k, v in pairs(options) do
   vim.opt[k] = v
 end
 
+-- fold, sign, git signs, line number. Splitting git signs out of the sign column
+-- stops them competing with diagnostics for the one cell there.
+vim.o.statuscolumn = [[%C%s%{%v:lua.require'will.utils'.git_statuscolumn()%}%=%l ]]
+
 vim.opt.fillchars = {
   vert = "║",
   horiz = "═",
@@ -70,14 +75,17 @@ vim.cmd [[set formatoptions-=cro]] -- TODO: this doesn't seem to work
 vim.cmd [[set spellfile=.en.utf-8.add]]
 
 -- manually enable osc52
-vim.g.clipboard = {
-  name = "OSC52", -- if name is default "OSC 52", then whichkey wont display
-  copy = {
-    ["+"] = require("vim.ui.clipboard.osc52").copy "+",
-    ["*"] = require("vim.ui.clipboard.osc52").copy "*",
-  },
-  paste = {
-    ["+"] = require("vim.ui.clipboard.osc52").paste "+",
-    ["*"] = require("vim.ui.clipboard.osc52").paste "*",
-  },
-}
+local in_zellij = vim.env.ZELLIJ ~= nil -- waiting for https://github.com/zellij-org/zellij/issues/2647
+if not in_zellij then
+  vim.g.clipboard = {
+    name = "OSC52", -- if name is default "OSC 52", then whichkey wont display
+    copy = {
+      ["+"] = require("vim.ui.clipboard.osc52").copy "+",
+      ["*"] = require("vim.ui.clipboard.osc52").copy "*",
+    },
+    paste = {
+      ["+"] = require("vim.ui.clipboard.osc52").paste "+",
+      ["*"] = require("vim.ui.clipboard.osc52").paste "*",
+    },
+  }
+end

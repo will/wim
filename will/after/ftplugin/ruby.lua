@@ -53,7 +53,7 @@ vim.api.nvim_create_autocmd({ "BufEnter", "TextChanged", "InsertLeave" }, {
     local tree = parser:parse()[1]
     local root = tree:root()
     local ranges = {}
-    for _, matches, _ in query:iter_matches(root, bufnr, 0, -1, { all = true }) do
+    for _, matches, _ in query:iter_matches(root, bufnr, 0, -1) do
       for _, nodes in pairs(matches) do
         -- local capture_name = query.captures[id]
         -- if capture_name == "c"

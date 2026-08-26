@@ -25,6 +25,9 @@ return {
       require("neorg").setup {
         load = {
           ["core.defaults"] = {},
+          -- parsers come from nix, and configuring them needs the removed
+          -- nvim-treesitter module api
+          ["core.integrations.treesitter"] = { config = { configure_parsers = false } },
           ["core.concealer"] = {},
           ["core.journal"] = {
             config = {

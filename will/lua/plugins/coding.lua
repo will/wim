@@ -29,38 +29,90 @@ utils.after_ui_enter(function()
       documentation = { auto_show = true, window = { border = "double" } },
       menu = { border = "rounded" },
     },
-    fuzzy = { prebuilt_binaries = { download = false } },
+    -- nix builds the matcher, never fall back to (or fetch) anything else
+    fuzzy = { implementation = "rust" },
     signature = { enabled = true },
   }
 end)
 
 local nxo = { "n", "x", "o" }
+local xo = { "x", "o" }
 
 ---@type lz.n.Spec
 return {
   {
-    "leap.nvim", -- https://github.com/ggandor/leap.nvim
+    "leap.nvim", -- https://codeberg.org/ggandor/leap.nvim
     after = function()
-      require("leap").add_default_mappings(true)
-      vim.api.nvim_set_hl(0, "LeapBackdrop", { link = "Comment" })
-      vim.keymap.del({ "x", "o" }, "x")
-      vim.keymap.del({ "x", "o" }, "X")
+      vim.keymap.set(nxo, "s", "<Plug>(leap-forward)")
+      vim.keymap.set(nxo, "S", "<Plug>(leap-backward)")
+      -- gs/gS belong to Visitor mode below, so cross-window leaping lives on gW
+      vim.keymap.set(nxo, "gW", "<Plug>(leap-from-window)")
+      require("leap.user").set_backdrop_highlight "Comment"
+
+      -- Visitor mode: leap away, operate there, come back. Upstream's keys, see
+      -- :h leap-visit
+      vim.keymap.set(nxo, "gs", "<Plug>(leap-visit)")
+      vim.keymap.set(nxo, "gS", "<Plug>(leap-visit-linewise)")
+      vim.keymap.set(xo, "ar", "<Plug>(leap-visit-text-object)")
+      vim.keymap.set(xo, "ir", "<Plug>(leap-visit-inner-text-object)")
+      vim.keymap.set("o", "rr", "<Plug>(leap-visit-line)")
+
+      -- Autopaste (:h leap-visit-autopaste): text yanked at the visited region comes
+      -- back and is pasted where the visit started, so `yarp{leap}` clones a remote
+      -- paragraph.
+      --
+      -- 'clipboard' is unnamedplus, so a visit that named no register reports '+' (or
+      -- '*') rather than '"'. Accepting those makes an explicit "+yarw look like it
+      -- named nothing, so that autopastes too.
+      local default_register = { ['"'] = true, ["+"] = true, ["*"] = true }
+
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "VisitDone",
+        group = vim.api.nvim_create_augroup("LeapVisitAutopaste", { clear = true }),
+        callback = function(event)
+          -- Visual mode visits yank the selection before leaping (see
+          -- :h leap-visit-visual), so those always want the paste; every other
+          -- mode only when the remote action itself was a yank, or a remote `d`
+          -- would paste its own spoils back. An empty register would just be E353.
+          local yanked = event.data.mode:match "^[vV\22]" or vim.v.operator == "y"
+          if not yanked or not default_register[event.data.register] then return end
+          if vim.fn.getreg '"' == "" then return end
+          -- explicitly the register checked above: a bare `p` would read '+' under
+          -- 'clipboard' unnamedplus, i.e. go out to the clipboard provider
+          vim.cmd 'normal! ""p'
+        end,
+      })
+
+      -- one-char f/t motions, replacing the unmaintained flit.nvim
+      local function ft(args)
+        require("leap").leap(vim.tbl_deep_extend("keep", args, {
+          inputlen = 1,
+          inclusive = true,
+          opts = {
+            labels = "", -- always autojump, safe labels for the rest
+            vim_opts = { ["go.ignorecase"] = false }, -- f/t is case sensitive, like vanilla
+          },
+        }))
+      end
+
+      vim.keymap.set(nxo, "f", function() ft {} end, { desc = "Leap to char" })
+      vim.keymap.set(nxo, "F", function() ft { backward = true } end, { desc = "Leap back to char" })
+      vim.keymap.set(nxo, "t", function() ft { offset = -1 } end, { desc = "Leap till char" })
+      vim.keymap.set(nxo, "T", function() ft { backward = true, offset = 1 } end, { desc = "Leap back till char" })
     end,
     keys = {
       { "s", mode = nxo, desc = "Leap forward to" },
       { "S", mode = nxo, desc = "Leap backward to" },
-      { "gs", mode = nxo, desc = "Leap from windows" },
-    },
-  },
-  {
-    "flit.nvim", -- https://github.com/ggandor/flit.nvim
-    before = function() require("lz.n").trigger_load "leap.nvim" end,
-    after = function() require("flit").setup { labeled_modes = "nxo" } end,
-    keys = {
-      { "f", mode = nxo },
-      { "F", mode = nxo },
-      { "t", mode = nxo },
-      { "T", mode = nxo },
+      { "gW", mode = nxo, desc = "Leap from window" },
+      { "gs", mode = nxo, desc = "Leap visit" },
+      { "gS", mode = nxo, desc = "Leap visit linewise" },
+      { "ar", mode = xo, desc = "Leap visit a text object" },
+      { "ir", mode = xo, desc = "Leap visit inner text object" },
+      { "rr", mode = "o", desc = "Leap visit line" },
+      { "f", mode = nxo, desc = "Leap to char" },
+      { "F", mode = nxo, desc = "Leap back to char" },
+      { "t", mode = nxo, desc = "Leap till char" },
+      { "T", mode = nxo, desc = "Leap back till char" },
     },
   },
   {
