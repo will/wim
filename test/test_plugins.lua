@@ -378,13 +378,13 @@ end
 
 -- A visit followed by a yank should bring the text back: `yar w` grabs a remote word
 -- and our VisitDone handler pastes it where the visit started (:h leap-visit-autopaste).
--- Run with 'clipboard' left at its configured unnamedplus, which is the whole point: a
--- bare `p` would read '+' and stall for 10s on an OSC 52 provider that headless nvim has
--- no terminal to answer, so this only finishes if the handler pastes from '"' by name.
+-- Run with 'clipboard' left as configured, which is the whole point: the handler has to
+-- paste from '"' by name, because the register the visit reports may be '+' and reading
+-- that goes out to a clipboard provider headless nvim has no terminal to answer.
 h.test("leap.nvim: a remote yank is pasted back at the origin", function()
   trigger "leap.nvim"
 
-  h.eq("unnamedplus", vim.o.clipboard, "this test is only meaningful with the configured clipboard")
+  h.eq("", vim.o.clipboard, "this test is only meaningful with the configured clipboard")
   local register = vim.fn.getreg '"'
   vim.cmd "tabnew"
   local buf = vim.api.nvim_get_current_buf()
@@ -412,7 +412,7 @@ end)
 h.test("leap.nvim: autopaste leaves everything else alone", function()
   trigger "leap.nvim"
 
-  h.eq("unnamedplus", vim.o.clipboard, "this test is only meaningful with the configured clipboard")
+  h.eq("", vim.o.clipboard, "this test is only meaningful with the configured clipboard")
   local register = vim.fn.getreg '"'
   vim.cmd "tabnew"
   local buf = vim.api.nvim_get_current_buf()
@@ -444,13 +444,17 @@ h.test("leap.nvim: autopaste leaves everything else alone", function()
 
     -- and the paths that should paste still do, so the guards above are not just
     -- switching the whole thing off. '+' is what v:register reports for a visit that
-    -- named no register at all while 'clipboard' is unnamedplus.
+    -- named no register, and is accepted so an explicit "+yarw autopastes too.
     visit_done { mode = "v", register = '"' }
     h.eq("XNOPE one two", vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1], "a visual mode visit did not paste")
 
     reset()
     visit_done { mode = "V", register = "+" }
-    h.eq("XNOPE one two", vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1], "the unnamedplus register did not paste")
+    h.eq(
+      "XNOPE one two",
+      vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1],
+      "a visit naming the clipboard register did not paste"
+    )
   end)
 
   vim.cmd "tabclose!"

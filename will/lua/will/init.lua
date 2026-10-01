@@ -28,6 +28,7 @@ local config = function()
   require "will.autocommands"
   require "will.lsp"
   require "will.null_ls"
+  require("will.journal").setup()
 end
 
 if utils.sandboxed() then

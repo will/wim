@@ -50,8 +50,8 @@ local api = vim.api
 local create_autocmd = api.nvim_create_autocmd
 local create_augroup = function(name) return api.nvim_create_augroup(name, { clear = true }) end
 
-create_autocmd("FocusGained", {
-  pattern = "*",
-  callback = function() vim.fn.setreg("p", vim.fn.getreg "+") end,
-  group = create_augroup "StashClipboard",
-})
+-- A FocusGained handler used to stash '+' into 'p', as a fallback for deletes clobbering
+-- the system clipboard under 'clipboard' unnamedplus. will.options stops deletes getting
+-- there in the first place, so there is nothing left to rescue -- and reading '+' on every
+-- focus was a terminal round trip that hung for ten seconds whenever OSC 52 reads were
+-- not available.

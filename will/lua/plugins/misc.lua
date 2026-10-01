@@ -22,6 +22,9 @@ return {
       packadd "neorg-interim-ls"
     end,
     after = function()
+      -- one source of truth for the path: will.journal reads its settings from in there
+      local notes = require("will.journal").config.notes_dir
+
       require("neorg").setup {
         load = {
           ["core.defaults"] = {},
@@ -32,9 +35,12 @@ return {
           ["core.journal"] = {
             config = {
               strategy = function(t) return string.lower("" .. os.date("%Y/%W/%Y-%m-%d_%A.norg", os.time(t))) end,
+              -- will.journal writes the skeleton instead: a template is copied verbatim,
+              -- so it can neither fill the date in nor stay in step with the sections
+              use_template = false,
             },
           },
-          ["core.dirman"] = { config = { default_workspace = "notes", workspaces = { notes = "~/notes" } } },
+          ["core.dirman"] = { config = { default_workspace = "notes", workspaces = { notes = notes } } },
           ["external.interim-ls"] = {},
           ["core.esupports.indent"] = {},
           ["core.completion"] = { config = { engine = { module_name = "external.lsp-completion" } } },

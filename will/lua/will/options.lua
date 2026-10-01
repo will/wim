@@ -2,7 +2,7 @@
 local options = {
   exrc = true,                             -- execute project-local .nvim.lua files
   backup = false,                          -- creates a backup file
-  clipboard = "unnamedplus",               -- allows neovim to access the system clipboard
+  clipboard = "",                          -- deliberately not unnamedplus; see PublishYanks below
   cmdheight = 0,
   cursorline = true,                       -- highlight the current line
   expandtab = true,                        -- convert tabs to spaces
@@ -77,6 +77,10 @@ vim.cmd [[set spellfile=.en.utf-8.add]]
 -- manually enable osc52
 local in_zellij = vim.env.ZELLIJ ~= nil -- waiting for https://github.com/zellij-org/zellij/issues/2647
 if not in_zellij then
+  -- Reading the clipboard back needs ghostty's `clipboard-read = allow`; without it the
+  -- terminal never answers and nvim blocks for ten seconds (:h clipboard-osc52). Anything
+  -- reading '+' from inside an autocommand also needs `nested = true`, or the TermResponse
+  -- carrying the reply cannot fire. https://github.com/neovim/neovim/issues/32699
   vim.g.clipboard = {
     name = "OSC52", -- if name is default "OSC 52", then whichkey wont display
     copy = {
@@ -89,3 +93,22 @@ if not in_zellij then
     },
   }
 end
+
+-- 'clipboard' is empty above rather than unnamedplus, because unnamedplus sends deletes
+-- to the system clipboard as well as yanks: a `dd` in here would throw away whatever was
+-- copied in the browser. Publishing only yanks keeps the clipboard holding what was
+-- deliberately copied, while `p` goes on reading vim's own unnamed register, so deleting
+-- text and putting it back still works. Going the other way is "+p, or the terminal's
+-- own paste, which never went through 'clipboard' anyway.
+vim.api.nvim_create_autocmd("TextYankPost", {
+  group = vim.api.nvim_create_augroup("PublishYanks", { clear = true }),
+  desc = "Send yanks, but not deletes, to the system clipboard",
+  callback = function()
+    local event = vim.v.event
+    -- `d` (which covers x and visual d), `c` and the rest all land here too
+    if event.operator ~= "y" then return end
+    -- naming a register, including "+y itself, was a choice this should not second-guess
+    if event.regname ~= "" then return end
+    vim.fn.setreg("+", event.regcontents, event.regtype)
+  end,
+})

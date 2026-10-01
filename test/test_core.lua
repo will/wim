@@ -11,6 +11,51 @@ h.test("config bootstrapped", function()
   h.eq("expr", vim.o.foldmethod, "will.options did not apply")
 end)
 
+-- The reason 'clipboard' is empty rather than unnamedplus: that would send deletes to the
+-- system clipboard as well as yanks, so a `dd` in here would throw away whatever had been
+-- copied in the browser. Deleted text still has to come back with `p` though, which is
+-- the other half of the bargain.
+h.test("yanks reach the system clipboard, deletes stay in vim", function()
+  h.deferred() -- the yank publisher is registered with the rest of the deferred config
+  h.eq("", vim.o.clipboard, "'clipboard' is set, so deletes would reach the system clipboard")
+
+  -- Reading '+' through the configured OSC 52 provider would ask the terminal a question
+  -- that headless nvim has nothing to answer with, and stall ten seconds before giving up
+  -- empty. An in-memory provider keeps the register real while staying local.
+  local provider = vim.g.clipboard
+  local store = {}
+  vim.g.clipboard = {
+    name = "test",
+    copy = { ["+"] = function(lines, regtype) store[1] = { lines, regtype } end, ["*"] = function() end },
+    paste = { ["+"] = function() return store[1] or { { "" }, "v" } end, ["*"] = function() end },
+  }
+
+  vim.cmd "tabnew"
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "yanked line", "doomed line" })
+
+  local ok, err = pcall(function()
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    vim.cmd "normal! yy"
+    h.eq("yanked line\n", vim.fn.getreg "+", "a yank did not reach the clipboard")
+
+    vim.cmd "normal! jdd"
+    h.eq("yanked line\n", vim.fn.getreg "+", "a delete reached the clipboard and clobbered the yank")
+    h.eq("doomed line\n", vim.fn.getreg '"', "the deleted text is not there to paste back")
+
+    vim.cmd "normal! p"
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    h.eq("yanked line,doomed line", table.concat(lines, ","), "the delete did not paste back")
+
+    -- an explicitly named register is a deliberate choice to go somewhere else
+    vim.cmd 'normal! gg"ayy'
+    h.eq("yanked line\n", vim.fn.getreg "+", '"ayy was published to the clipboard')
+  end)
+
+  vim.cmd "tabclose!"
+  vim.g.clipboard = provider
+  if not ok then error(err) end
+end)
+
 h.test("colorscheme set", function() h.assert(vim.g.colors_name ~= nil, "no colorscheme set") end)
 
 h.test("lz.n lazy loader available", function() h.require_ok "lz.n" end)

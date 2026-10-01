@@ -61,9 +61,9 @@ return {
       -- back and is pasted where the visit started, so `yarp{leap}` clones a remote
       -- paragraph.
       --
-      -- 'clipboard' is unnamedplus, so a visit that named no register reports '+' (or
-      -- '*') rather than '"'. Accepting those makes an explicit "+yarw look like it
-      -- named nothing, so that autopastes too.
+      -- A visit that named no register reports '"'. Accepting '+' and '*' as well means
+      -- an explicit "+yarw autopastes too, rather than looking like a deliberate choice
+      -- to send the text somewhere else.
       local default_register = { ['"'] = true, ["+"] = true, ["*"] = true }
 
       vim.api.nvim_create_autocmd("User", {
@@ -77,8 +77,8 @@ return {
           local yanked = event.data.mode:match "^[vV\22]" or vim.v.operator == "y"
           if not yanked or not default_register[event.data.register] then return end
           if vim.fn.getreg '"' == "" then return end
-          -- explicitly the register checked above: a bare `p` would read '+' under
-          -- 'clipboard' unnamedplus, i.e. go out to the clipboard provider
+          -- explicitly the register checked above: the visit may have named '+', and
+          -- pasting that would go out to the clipboard provider for text nvim already has
           vim.cmd 'normal! ""p'
         end,
       })
